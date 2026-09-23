@@ -1,3 +1,9 @@
+html,
+body,
+#root {
+  height: 100%;
+}
+
 body {
   margin: 0;
   background: #f0f4fb;
@@ -7,9 +13,11 @@ body {
 }
 
 .app {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 32px 24px 80px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 24px 0;
+  box-sizing: border-box;
 }
 
 .app-header {
@@ -18,7 +26,8 @@ body {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  margin-bottom: 20px;
+  padding-bottom: 16px;
+  flex-shrink: 0;
 }
 
 .app-title {
@@ -30,9 +39,11 @@ body {
 }
 
 .app-main {
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 16px rgba(30, 60, 120, 0.05);
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .app-loading {

@@ -129,7 +129,8 @@ export function RichEditor(props: RichEditorProps) {
       onSelect: (item) => handleSelect(item),
     })
 
-    const allPlugins: Plugin[] = [keymap(baseKeymap), ...manager.plugins, slashPlugin, ...plugins]
+    // 模块自定义 keymap 优先于 baseKeymap 执行（如列表的 Enter/Tab 缩进需覆盖默认行为）
+    const allPlugins: Plugin[] = [...manager.plugins, keymap(baseKeymap), slashPlugin, ...plugins]
 
     const state = createEditorState({ schema: manager.schema, doc, initialHTML, plugins: allPlugins })
 

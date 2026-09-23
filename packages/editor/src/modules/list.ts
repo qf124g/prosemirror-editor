@@ -1,4 +1,4 @@
-import { wrapInList } from 'prosemirror-schema-list'
+import { wrapInList, splitListItem, sinkListItem, liftListItem } from 'prosemirror-schema-list'
 import { wrappingInputRule } from 'prosemirror-inputrules'
 import { UnorderedListOutlined, OrderedListOutlined } from '@ant-design/icons'
 import { blockActive } from '../core/active'
@@ -38,6 +38,14 @@ export const listModule: EditorModule = {
   commands: {
     bulletList: (state, dispatch) => wrapInList(state.schema.nodes.bullet_list)(state, dispatch),
     orderedList: (state, dispatch) => wrapInList(state.schema.nodes.ordered_list)(state, dispatch),
+    splitListItem: (state, dispatch) => splitListItem(state.schema.nodes.list_item)(state, dispatch),
+    sinkListItem: (state, dispatch) => sinkListItem(state.schema.nodes.list_item)(state, dispatch),
+    liftListItem: (state, dispatch) => liftListItem(state.schema.nodes.list_item)(state, dispatch),
+  },
+  keymaps: {
+    Enter: (state, dispatch) => splitListItem(state.schema.nodes.list_item)(state, dispatch),
+    Tab: (state, dispatch) => sinkListItem(state.schema.nodes.list_item)(state, dispatch),
+    'Shift-Tab': (state, dispatch) => liftListItem(state.schema.nodes.list_item)(state, dispatch),
   },
   inputRules: [
     (schema) => [
