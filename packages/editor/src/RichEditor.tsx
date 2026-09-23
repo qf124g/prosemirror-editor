@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { EditorView } from 'prosemirror-view'
 import { keymap } from 'prosemirror-keymap'
 import { baseKeymap } from 'prosemirror-commands'
@@ -46,6 +46,43 @@ export interface RichEditorProps {
   className?: string
 }
 
+// 斜杠菜单固定宽度与最大高度、与光标/边界的间距
+const SLASH_MENU_WIDTH = 280
+const SLASH_MENU_MAX_HEIGHT = 380
+const SLASH_MENU_GAP = 4
+
+interface SlashPosition {
+  left: number
+  top: number
+}
+
+// 根据光标位置与滚动容器可视区域，计算斜杠菜单展示位置：
+// 默认在光标下方，下方空间不足时翻转到上方；上下均不足则返回 'close' 关闭菜单
+function computeSlashPosition(
+  coords: { left: number; top: number; bottom: number },
+  rect: DOMRect,
+  menuSize: { width: number; height: number } | null,
+): SlashPosition | 'close' {
+  const menuWidth = menuSize?.width ?? SLASH_MENU_WIDTH
+  const menuHeight = menuSize?.height ?? SLASH_MENU_MAX_HEIGHT
+
+  // 水平方向：优先对齐光标左边缘，超出可视区则向内收
+  let left = coords.left - rect.left
+  const maxLeft = rect.width - menuWidth - SLASH_MENU_GAP
+  left = Math.max(SLASH_MENU_GAP, Math.min(left, maxLeft))
+
+  const spaceBelow = rect.bottom - coords.bottom
+  const spaceAbove = coords.top - rect.top
+
+  if (spaceBelow >= menuHeight + SLASH_MENU_GAP) {
+    return { left, top: coords.bottom - rect.top + SLASH_MENU_GAP }
+  }
+  if (spaceAbove >= menuHeight + SLASH_MENU_GAP) {
+    return { left, top: coords.top - rect.top - menuHeight - SLASH_MENU_GAP }
+  }
+  return 'close'
+}
+
 // 富文本编辑器主组件
 export function RichEditor(props: RichEditorProps) {
   const {
@@ -79,6 +116,11 @@ export function RichEditor(props: RichEditorProps) {
   const [view, setView] = useState<EditorView | null>(null)
   const [, setTick] = useState(0)
   const [summary, setSummary] = useState({ open: false, loading: false, text: '' })
+  const [menuSize, setMenuSize] = useState<{ width: number; height: number } | null>(null)
+
+  const handleMenuSizeChange = useCallback((size: { width: number; height: number } | null) => {
+    setMenuSize(size)
+  }, [])
 
   const runAISummary = useCallback(async () => {
     const v = viewRef.current
@@ -177,15 +219,30 @@ export function RichEditor(props: RichEditorProps) {
   const filtered = filterSlashItems(manager?.slashItems ?? [], slashState.query)
 
   // 将 view.coordsAtPos 的视口坐标换算为相对滚动容器 .full-editor-body 的坐标，
-  // 保证斜杠菜单正确定位在光标下方（coords 为视口坐标，绝对定位需减去容器偏移）
-  const position = (() => {
+  // 并根据可视空间动态翻转（优先下方，不足翻上方）或返回 'close' 关闭菜单
+  const slashPlacement: SlashPosition | 'close' | null = (() => {
     if (!slashState.active || !view) return null
-    const coords = view.coordsAtPos(slashState.from)
     const body = containerRef.current?.parentElement
-    if (!body) return { left: coords.left, top: coords.bottom }
+    if (!body) return null
+    const coords = view.coordsAtPos(slashState.from)
     const rect = body.getBoundingClientRect()
-    return { left: coords.left - rect.left, top: coords.bottom - rect.top }
+    const result = computeSlashPosition(coords, rect, menuSize)
+    // 未测得菜单尺寸前不关停：先按光标下方预估位置渲染，待测量后再做翻转/关闭判定
+    if (result === 'close' && !menuSize) {
+      return { left: coords.left - rect.left, top: coords.bottom - rect.top + SLASH_MENU_GAP }
+    }
+    return result
   })()
+
+  const position = slashPlacement && slashPlacement !== 'close' ? slashPlacement : null
+
+  // 上下空间均不足以完整展示菜单时，关闭 / 菜单，保证页面可视
+  const shouldClose = slashPlacement === 'close'
+  useLayoutEffect(() => {
+    if (shouldClose && view && slashPluginKey.getState(view.state)?.active) {
+      view.dispatch(view.state.tr.setMeta(slashPluginKey, { close: true }))
+    }
+  }, [shouldClose, view])
 
   return (
     <div className={`full-editor ${className || ''}`}>
@@ -200,6 +257,7 @@ export function RichEditor(props: RichEditorProps) {
           query={slashState.query}
           position={position}
           onPick={handleSelect}
+          onSizeChange={handleMenuSizeChange}
           onHover={(index) => {
             if (view && slashPluginKey.getState(view.state)?.active) {
               view.dispatch(view.state.tr.setMeta(slashPluginKey, { index }))
