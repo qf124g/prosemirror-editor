@@ -76,6 +76,8 @@
   color: #2f3542;
   min-height: 360px;
   caret-color: #2f6fed;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 /* 长文本：仅段落与标题离屏跳过布局；列表/表格/媒体因 contain 会裁剪 ::marker 或复杂结构，故排除 */
@@ -372,6 +374,10 @@
 .ai-summary-loading {
   padding: 32px;
   text-align: center;
+}
+
+.ai-summary-loading-placeholder {
+  min-height: 120px;
 }
 
 .ai-summary-content {

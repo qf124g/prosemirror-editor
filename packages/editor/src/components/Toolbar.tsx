@@ -67,18 +67,13 @@ function ToolbarColor(props: { item: ToolbarItemConfig; api: EditorAPI }) {
     const markType = api.view.state.schema.marks[markName]
     if (markType && hex) toggleMark(markType, { color: hex })(api.view.state, api.view.dispatch)
   }
+  // 直接用 ColorPicker 包裹按钮，避免 Tooltip 包裹 ColorPicker 触发 findDOMNode 弃用警告
   return (
-    <Tooltip title={item.label}>
-      <ColorPicker
-        size="small"
-        format="hex"
-        onChangeComplete={(color) => apply(color.toHexString())}
-      >
-        <Button size="small" type="text" icon={Icon ? <Icon /> : undefined}>
-          {item.label}
-        </Button>
-      </ColorPicker>
-    </Tooltip>
+    <ColorPicker size="small" format="hex" onChangeComplete={(color) => apply(color.toHexString())}>
+      <Button size="small" type="text" icon={Icon ? <Icon /> : undefined}>
+        {item.label}
+      </Button>
+    </ColorPicker>
   )
 }
 
