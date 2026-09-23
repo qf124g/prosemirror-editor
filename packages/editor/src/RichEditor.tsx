@@ -9,6 +9,7 @@ import { createEditorState } from './core/createView'
 import { toPlainText } from './core/serialization'
 import { createSlashPlugin, slashPluginKey, filterSlashItems, emptySlashState } from './plugins/slashPlugin'
 import { createPlaceholderPlugin } from './plugins/placeholder'
+import { createGhostTextPlugin } from './plugins/ghostText'
 import { Toolbar } from './components/Toolbar'
 import { SlashMenu } from './components/SlashMenu'
 import { AISummaryPanel } from './components/AISummaryPanel'
@@ -40,6 +41,7 @@ export interface RichEditorProps {
   toolbarItems?: ToolbarItemConfig[]
   slashItems?: SlashItemConfig[]
   aiSummary?: (text: string) => Promise<string>
+  aiComplete?: (context: string, signal?: AbortSignal) => Promise<string>
   showToolbar?: boolean
   editable?: boolean
   placeholder?: string
@@ -97,6 +99,7 @@ export function RichEditor(props: RichEditorProps) {
     toolbarItems = [],
     slashItems = [],
     aiSummary,
+    aiComplete,
     showToolbar = true,
     editable = true,
     placeholder = '输入 / 试试吧',
@@ -112,6 +115,8 @@ export function RichEditor(props: RichEditorProps) {
   onChangeRef.current = onChange
   const aiSummaryRef = useRef(aiSummary)
   aiSummaryRef.current = aiSummary
+  const aiCompleteRef = useRef(aiComplete)
+  aiCompleteRef.current = aiComplete
 
   const [view, setView] = useState<EditorView | null>(null)
   const [, setTick] = useState(0)
@@ -172,8 +177,21 @@ export function RichEditor(props: RichEditorProps) {
       onSelect: (item) => handleSelect(item),
     })
 
+    // 幽灵续写：置顶以便 Tab 接受建议优先于列表缩进等已有快捷键
+    const ghostTextPlugin = createGhostTextPlugin({
+      async complete(context, signal) {
+        const fn = aiCompleteRef.current
+        return fn ? await fn(context, signal) : ''
+      },
+      enabled: (state) => {
+        if (!aiCompleteRef.current) return false
+        if (slashPluginKey.getState(state)?.active) return false
+        return !!state.selection.$from.parent.isTextblock
+      },
+    })
+
     // 模块自定义 keymap 优先于 baseKeymap 执行（如列表的 Enter/Tab 缩进需覆盖默认行为）
-    const allPlugins: Plugin[] = [...manager.plugins, keymap(baseKeymap), slashPlugin, createPlaceholderPlugin(), ...plugins]
+    const allPlugins: Plugin[] = [ghostTextPlugin, ...manager.plugins, keymap(baseKeymap), slashPlugin, createPlaceholderPlugin(), ...plugins]
 
     const state = createEditorState({ schema: manager.schema, doc, initialHTML, plugins: allPlugins })
 

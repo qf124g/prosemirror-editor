@@ -96,8 +96,8 @@ export const myModule: EditorModule = {
 
 ## 环境变量
 
-后端 AI 摘要依赖以下环境变量（不配置时接口返回未配置错误）：
+后端 AI 摘要 / AI 续写对接阿里云百炼（DashScope）OpenAI 兼容接口，依赖以下环境变量：
 
-- `OPENAI_BASE_URL`：OpenAI 兼容接口地址，默认 `https://api.openai.com/v1`
-- `OPENAI_API_KEY`：API 密钥
-- `OPENAI_MODEL`：模型名，默认 `gpt-4o-mini`
+- `DASHSCOPE_API_KEY`：API 密钥（必填，未配置时接口返回未配置错误）
+- `DASHSCOPE_BASE_URL`：兼容接口地址，默认 `https://dashscope.aliyuncs.com/compatible-mode/v1`
+- `DASHSCOPE_MODEL`：模型名，默认 `qwen-plus`

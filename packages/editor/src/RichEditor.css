@@ -101,6 +101,14 @@
   pointer-events: none;
 }
 
+/* 幽灵续写建议：灰色斜体，点击穿透到编辑器 */
+.full-editor-content .ghost-suggestion {
+  color: #b0b6c0;
+  font-style: italic;
+  pointer-events: none;
+  white-space: pre-wrap;
+}
+
 .full-editor-content p {
   margin: 0 0 10px;
 }

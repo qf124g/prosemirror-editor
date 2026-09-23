@@ -64,6 +64,23 @@ function App() {
     return data.summary
   }, [])
 
+  // AI 幽灵续写
+  const aiComplete = useCallback(async (context: string, signal?: AbortSignal) => {
+    const res = await fetch(`${API}/api/ai/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: context }),
+      signal,
+    })
+    if (!res.ok) {
+      if (res.status === 404) return ''
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error || 'AI 续写失败')
+    }
+    const data = await res.json()
+    return data.continuation || ''
+  }, [])
+
   const handleReady = useCallback((handle: RichEditorHandle) => {
     editorRef.current = handle
   }, [])
@@ -163,6 +180,7 @@ function App() {
           resourceResolver={resourceResolver}
           uploadMedia={uploadMedia}
           aiSummary={aiSummary}
+          aiComplete={aiComplete}
         />
       </main>
     </div>
