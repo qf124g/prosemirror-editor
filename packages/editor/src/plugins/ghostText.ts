@@ -21,6 +21,9 @@ export interface GhostTextOptions {
 
 // 幽灵续写插件：建议只存在于装饰层，接受时才落地为一次可撤销的 insertText
 export function createGhostTextPlugin(options: GhostTextOptions): Plugin<GhostState | null> {
+  // 标记「本次文档变化是否由用户键入文字引发」：上传资源等结构性变更不触发续写
+  let typed = false
+
   const apply = (tr: Transaction, prev: GhostState | null): GhostState | null => {
     const meta = tr.getMeta(ghostKey) as { set?: string; clear?: boolean } | undefined
     if (meta?.clear) return null
@@ -69,7 +72,15 @@ export function createGhostTextPlugin(options: GhostTextOptions): Plugin<GhostSt
   return new Plugin<GhostState | null>({
     key: ghostKey,
     state: { init: () => null, apply },
-    props: { decorations, handleKeyDown },
+    props: {
+      decorations,
+      handleKeyDown,
+      // 精确标记「用户键入文字」：包括普通键入与 IME 组合提交；媒体上传等 command 派发不经过此钩子
+      handleTextInput() {
+        typed = true
+        return false
+      },
+    },
     view(view) {
       let controller: AbortController | null = null
       let timer: number | undefined
@@ -96,9 +107,17 @@ export function createGhostTextPlugin(options: GhostTextOptions): Plugin<GhostSt
       return {
         update(v, prevState) {
           const docChanged = !v.state.doc.eq(prevState.doc)
-          const moved = v.state.selection.from !== prevState.selection.from
-          if (docChanged) schedule()
-          else if (moved) controller?.abort()
+          if (typed) {
+            // 仅当本次文档变化由用户键入文字引发时才续写
+            typed = false
+            if (docChanged) schedule()
+          } else if (docChanged) {
+            // 换行、上传资源等非键入导致的文档变化：取消待执行的续写，避免换行后误触发
+            controller?.abort()
+            window.clearTimeout(timer)
+          } else if (v.state.selection.from !== prevState.selection.from) {
+            controller?.abort()
+          }
         },
         destroy() {
           controller?.abort()
