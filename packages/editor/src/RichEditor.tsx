@@ -10,6 +10,8 @@ import { toPlainText } from './core/serialization'
 import { createSlashPlugin, slashPluginKey, filterSlashItems, emptySlashState } from './plugins/slashPlugin'
 import { createPlaceholderPlugin } from './plugins/placeholder'
 import { createGhostTextPlugin } from './plugins/ghostText'
+import { createSuggestionPlugin, requestSuggestion } from './plugins/suggestionPlugin'
+import { createDiffPlugin, requestDiff } from './plugins/diffPlugin'
 import { Toolbar } from './components/Toolbar'
 import { SlashMenu } from './components/SlashMenu'
 import { AISummaryPanel } from './components/AISummaryPanel'
@@ -27,7 +29,11 @@ export interface RichEditorHandle {
   view: EditorView
   manager: EditorManager
   commands: Record<string, Command>
+  runAIRewrite: () => void
 }
+
+// AI 协同写作模式：ghost 内联续写 / suggest 批注建议 / diff 差异视图
+export type AICollabMode = 'ghost' | 'suggest' | 'diff'
 
 export interface RichEditorProps {
   doc?: any
@@ -42,6 +48,8 @@ export interface RichEditorProps {
   slashItems?: SlashItemConfig[]
   aiSummary?: (text: string) => Promise<string>
   aiComplete?: (context: string, signal?: AbortSignal) => Promise<string>
+  aiMode?: AICollabMode
+  aiRewrite?: (text: string, signal?: AbortSignal) => Promise<string>
   showToolbar?: boolean
   editable?: boolean
   placeholder?: string
@@ -100,6 +108,8 @@ export function RichEditor(props: RichEditorProps) {
     slashItems = [],
     aiSummary,
     aiComplete,
+    aiMode = 'ghost',
+    aiRewrite,
     showToolbar = true,
     editable = true,
     placeholder = '输入 / 试试吧',
@@ -117,6 +127,10 @@ export function RichEditor(props: RichEditorProps) {
   aiSummaryRef.current = aiSummary
   const aiCompleteRef = useRef(aiComplete)
   aiCompleteRef.current = aiComplete
+  const aiRewriteRef = useRef(aiRewrite)
+  aiRewriteRef.current = aiRewrite
+  const lastDocRef = useRef<any>(null)
+  const aiRewriteTriggerRef = useRef<() => void>(() => {})
 
   const [view, setView] = useState<EditorView | null>(null)
   const [, setTick] = useState(0)
@@ -149,6 +163,10 @@ export function RichEditor(props: RichEditorProps) {
     }
   }, [])
 
+  const runAIRewrite = useCallback(() => {
+    aiRewriteTriggerRef.current()
+  }, [])
+
   const handleSelect = useCallback((item: SlashItemConfig) => {
     const v = viewRef.current
     const manager = managerRef.current
@@ -177,23 +195,48 @@ export function RichEditor(props: RichEditorProps) {
       onSelect: (item) => handleSelect(item),
     })
 
-    // 幽灵续写：置顶以便 Tab 接受建议优先于列表缩进等已有快捷键
-    const ghostTextPlugin = createGhostTextPlugin({
-      async complete(context, signal) {
-        const fn = aiCompleteRef.current
-        return fn ? await fn(context, signal) : ''
-      },
-      enabled: (state) => {
-        if (!aiCompleteRef.current) return false
-        if (slashPluginKey.getState(state)?.active) return false
-        return !!state.selection.$from.parent.isTextblock
-      },
-    })
+    // 根据 aiMode 选择不同的 AI 协同插件，三者互斥注册，便于切换对比效果
+    const aiCollabPlugin = ((): Plugin => {
+      if (aiMode === 'suggest') {
+        return createSuggestionPlugin({
+          getSuggestion: (text, signal) => {
+            const fn = aiRewriteRef.current
+            return fn ? fn(text, signal) : Promise.resolve('')
+          },
+        })
+      }
+      if (aiMode === 'diff') {
+        return createDiffPlugin({
+          getSuggestion: (text, signal) => {
+            const fn = aiRewriteRef.current
+            return fn ? fn(text, signal) : Promise.resolve('')
+          },
+        })
+      }
+      // ghost：置顶以便 Tab 接受建议优先于列表缩进等已有快捷键
+      return createGhostTextPlugin({
+        async complete(context, signal) {
+          const fn = aiCompleteRef.current
+          return fn ? await fn(context, signal) : ''
+        },
+        enabled: (state) => {
+          if (!aiCompleteRef.current) return false
+          if (slashPluginKey.getState(state)?.active) return false
+          return !!state.selection.$from.parent.isTextblock
+        },
+      })
+    })()
 
     // 模块自定义 keymap 优先于 baseKeymap 执行（如列表的 Enter/Tab 缩进需覆盖默认行为）
-    const allPlugins: Plugin[] = [ghostTextPlugin, ...manager.plugins, keymap(baseKeymap), slashPlugin, createPlaceholderPlugin(), ...plugins]
+    const allPlugins: Plugin[] = [aiCollabPlugin, ...manager.plugins, keymap(baseKeymap), slashPlugin, createPlaceholderPlugin(), ...plugins]
 
-    const state = createEditorState({ schema: manager.schema, doc, initialHTML, plugins: allPlugins })
+    // 切换 aiMode 会重建编辑器，用上一份文档 JSON 续接内容，避免内容被重置
+    const state = createEditorState({
+      schema: manager.schema,
+      doc: lastDocRef.current ?? doc,
+      initialHTML: lastDocRef.current ? undefined : initialHTML,
+      plugins: allPlugins,
+    })
 
     const editorView = new EditorView(element, {
       state,
@@ -204,6 +247,7 @@ export function RichEditor(props: RichEditorProps) {
         const next = this.state.apply(tr)
         this.updateState(next)
         if (tr.docChanged) {
+          lastDocRef.current = next.doc.toJSON()
           manager.emit('update', next.doc.toJSON())
           onChangeRef.current?.(next.doc.toJSON())
         }
@@ -214,9 +258,19 @@ export function RichEditor(props: RichEditorProps) {
 
     viewRef.current = editorView
     manager.view = editorView
-    apiRef.current = { view: editorView, commands: manager.commands, uploadMedia, runAISummary }
+
+    // 依据当前模式，把 AI 改写触发动作接到对应插件（ghost 模式无选区改写）
+    aiRewriteTriggerRef.current = () => {
+      const v = viewRef.current
+      const fn = aiRewriteRef.current
+      if (!v || !fn) return
+      if (aiMode === 'suggest') void requestSuggestion(v, fn)
+      else if (aiMode === 'diff') void requestDiff(v, fn)
+    }
+
+    apiRef.current = { view: editorView, commands: manager.commands, uploadMedia, runAISummary, runAIRewrite }
     setView(editorView)
-    onReady?.({ view: editorView, manager, commands: manager.commands })
+    onReady?.({ view: editorView, manager, commands: manager.commands, runAIRewrite })
 
     const offToolbar = manager.on('toolbarChange', () => setTick((t) => t + 1))
     const offSlash = manager.on('slashChange', () => setTick((t) => t + 1))
@@ -230,7 +284,7 @@ export function RichEditor(props: RichEditorProps) {
       setView(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [aiMode])
 
   const manager = managerRef.current
   const slashState = view ? slashPluginKey.getState(view.state) ?? emptySlashState : emptySlashState

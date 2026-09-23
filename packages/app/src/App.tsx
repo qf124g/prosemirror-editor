@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Button, Space, Spin, message } from 'antd'
+import { Button, Space, Spin, Select, message } from 'antd'
 import { DownloadOutlined, UploadOutlined } from '@ant-design/icons'
 import {
   RichEditor,
@@ -8,7 +8,7 @@ import {
   toMarkdown,
   downloadFile,
 } from '@full-editor/editor'
-import type { RichEditorHandle } from '@full-editor/editor'
+import type { RichEditorHandle, AICollabMode } from '@full-editor/editor'
 
 const API = 'http://localhost:4000'
 const DOC_ID = 'demo'
@@ -21,6 +21,7 @@ function App() {
   const [initialDoc, setInitialDoc] = useState<any>(null)
   const [loaded, setLoaded] = useState(false)
   const [docKey, setDocKey] = useState(0)
+  const [aiMode, setAiMode] = useState<AICollabMode>('ghost')
 
   useEffect(() => {
     fetch(`${API}/api/documents/${DOC_ID}`)
@@ -79,6 +80,22 @@ function App() {
     }
     const data = await res.json()
     return data.continuation || ''
+  }, [])
+
+  // AI 改写（批注建议 / diff 视图两种模式取用）
+  const aiRewrite = useCallback(async (text: string, signal?: AbortSignal) => {
+    const res = await fetch(`${API}/api/ai/rewrite`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+      signal,
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error || 'AI 改写失败')
+    }
+    const data = await res.json()
+    return data.suggestion || ''
   }, [])
 
   const handleReady = useCallback((handle: RichEditorHandle) => {
@@ -146,6 +163,22 @@ function App() {
       <header className="app-header">
         <h1 className="app-title">富文本编辑器</h1>
         <Space>
+          <Select<AICollabMode>
+            className="ai-mode-select"
+            value={aiMode}
+            onChange={setAiMode}
+            options={[
+              { value: 'ghost', label: 'AI 内联续写' },
+              { value: 'suggest', label: 'AI 批注建议' },
+              { value: 'diff', label: 'AI Diff 视图' },
+            ]}
+          />
+          <Button
+            disabled={aiMode === 'ghost'}
+            onClick={() => editorRef.current?.runAIRewrite()}
+          >
+            AI 改写
+          </Button>
           <Button icon={<DownloadOutlined />} onClick={() => exportAs('json')}>
             导出 JSON
           </Button>
@@ -181,6 +214,8 @@ function App() {
           uploadMedia={uploadMedia}
           aiSummary={aiSummary}
           aiComplete={aiComplete}
+          aiMode={aiMode}
+          aiRewrite={aiRewrite}
         />
       </main>
     </div>

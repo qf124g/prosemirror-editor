@@ -1,6 +1,6 @@
 // 对外公共 API：组件、管理器、模块、创建函数、序列化工具与类型
 export { RichEditor, RichEditor as default } from './RichEditor'
-export type { RichEditorProps, RichEditorHandle } from './RichEditor'
+export type { RichEditorProps, RichEditorHandle, AICollabMode } from './RichEditor'
 export { EditorManager } from './manager/EditorManager'
 export { builtinModules } from './modules'
 export { createEditor } from './core/createEditor'

@@ -65,3 +65,22 @@ aiRouter.post('/complete', async (req, res) => {
     res.status(502).json({ error: (err as Error).message })
   }
 })
+
+// AI 改写：对选定文本给出改写建议（供批注建议 / diff 视图两种协同模式取用）
+aiRouter.post('/rewrite', async (req, res) => {
+  const text: string | undefined = req.body?.text
+  if (!text) {
+    res.status(400).json({ error: '缺少文本' })
+    return
+  }
+  try {
+    const suggestion = await chat(
+      '你是写作助手，请改写下面的文本使其更通顺、准确，直接输出改写后的文本，不要解释。',
+      text,
+      0.7,
+    )
+    res.json({ suggestion })
+  } catch (err) {
+    res.status(502).json({ error: (err as Error).message })
+  }
+})

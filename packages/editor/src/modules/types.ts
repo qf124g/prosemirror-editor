@@ -16,6 +16,7 @@ export interface EditorAPI {
   commands: Record<string, Command>
   uploadMedia?: UploadMedia
   runAISummary: () => void
+  runAIRewrite: () => void
 }
 
 // 模块构建时注入的上下文

@@ -109,6 +109,76 @@
   white-space: pre-wrap;
 }
 
+/* 模式 B：批注建议 —— 原文红色删除线，建议绿色新增，附接受/拒绝控制 */
+.full-editor-content .ai-suggest-delete {
+  color: #c0392b;
+  background: rgba(192, 57, 43, 0.08);
+  text-decoration: line-through;
+}
+.full-editor-content .ai-suggest-add {
+  color: #1e8e3e;
+  background: rgba(30, 142, 62, 0.08);
+}
+.full-editor-content .ai-suggest-control {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 8px;
+  vertical-align: baseline;
+}
+.full-editor-content .ai-suggest-control button {
+  padding: 1px 8px;
+  font-size: 12px;
+  line-height: 18px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  background: #f0f4fb;
+  color: #33415c;
+}
+.full-editor-content .ai-suggest-control button:hover {
+  background: #e1ebfb;
+}
+
+/* 模式 C：Diff 视图 —— 差异卡片，逐行 - 红 / + 绿 */
+.full-editor-content .ai-diff-card {
+  margin: 4px 0 8px;
+  padding: 8px 10px;
+  border: 1px dashed #cfe0fa;
+  border-radius: 8px;
+  background: #f7faff;
+  font-size: 13px;
+  line-height: 1.6;
+  user-select: none;
+}
+.full-editor-content .ai-diff-line {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.full-editor-content .ai-diff-del {
+  color: #c0392b;
+}
+.full-editor-content .ai-diff-add {
+  color: #1e8e3e;
+}
+.full-editor-content .ai-diff-actions {
+  margin-top: 6px;
+  display: inline-flex;
+  gap: 4px;
+}
+.full-editor-content .ai-diff-actions button {
+  padding: 1px 8px;
+  font-size: 12px;
+  line-height: 18px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  background: #f0f4fb;
+  color: #33415c;
+}
+.full-editor-content .ai-diff-actions button:hover {
+  background: #e1ebfb;
+}
+
 .full-editor-content p {
   margin: 0 0 10px;
 }

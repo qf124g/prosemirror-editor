@@ -38,6 +38,10 @@ body {
   letter-spacing: 0.5px;
 }
 
+.ai-mode-select {
+  width: 160px;
+}
+
 .app-main {
   flex: 1;
   min-height: 0;
