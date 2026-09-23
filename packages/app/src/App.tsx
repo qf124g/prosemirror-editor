@@ -117,7 +117,9 @@ function App() {
   if (!loaded) {
     return (
       <div className="app-loading">
-        <Spin tip="加载中..." />
+        <Spin tip="加载中...">
+          <div className="app-loading-placeholder" />
+        </Spin>
       </div>
     )
   }

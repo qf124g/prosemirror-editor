@@ -24,13 +24,12 @@ function ToolbarButton(props: { item: ToolbarItemConfig; active: boolean; api: E
   return (
     <Tooltip title={item.label}>
       <Button
-        type={active ? 'primary' : 'text'}
+        className={active ? 'is-active' : undefined}
+        type="text"
         size="small"
         icon={Icon ? <Icon /> : undefined}
         onClick={() => runItem(api, item)}
-      >
-        {item.label}
-      </Button>
+      />
     </Tooltip>
   )
 }
@@ -51,10 +50,16 @@ function ToolbarDropdown(props: { item: ToolbarItemConfig; api: EditorAPI; state
   const active = options.some((o) => o.active?.(state))
   return (
     <Dropdown menu={{ items: menuItems, onClick }}>
-      <Button type={active ? 'primary' : 'text'} size="small" icon={Icon ? <Icon /> : undefined}>
-        {item.label}
-        <DownOutlined />
-      </Button>
+      <Tooltip title={item.label}>
+        <Button
+          className={active ? 'is-active' : undefined}
+          type="text"
+          size="small"
+          icon={Icon ? <Icon /> : undefined}
+        >
+          <DownOutlined />
+        </Button>
+      </Tooltip>
     </Dropdown>
   )
 }
@@ -67,12 +72,12 @@ function ToolbarColor(props: { item: ToolbarItemConfig; api: EditorAPI }) {
     const markType = api.view.state.schema.marks[markName]
     if (markType && hex) toggleMark(markType, { color: hex })(api.view.state, api.view.dispatch)
   }
-  // 直接用 ColorPicker 包裹按钮，避免 Tooltip 包裹 ColorPicker 触发 findDOMNode 弃用警告
+  // ColorPicker 作为外层触发器；Tooltip 只包裹 Button（而非 ColorPicker），避免 findDOMNode 弃用警告
   return (
     <ColorPicker size="small" format="hex" onChangeComplete={(color) => apply(color.toHexString())}>
-      <Button size="small" type="text" icon={Icon ? <Icon /> : undefined}>
-        {item.label}
-      </Button>
+      <Tooltip title={item.label}>
+        <Button size="small" type="text" icon={Icon ? <Icon /> : undefined} />
+      </Tooltip>
     </ColorPicker>
   )
 }
@@ -112,9 +117,9 @@ export function Toolbar({ state, api, items }: ToolbarProps) {
   const groups = groupItems(items)
   return (
     <div className="full-editor-toolbar">
-      <Space size={2} split={<span className="toolbar-divider" />} wrap>
+      <Space size={4} split={<span className="toolbar-divider" />} wrap>
         {groups.map((group) => (
-          <Space key={group[0].id} size={2} wrap>
+          <Space key={group[0].id} size={4} wrap>
             {group.map((item) => renderItem(state, api, item))}
           </Space>
         ))}

@@ -52,3 +52,7 @@ body {
   justify-content: center;
   min-height: 100vh;
 }
+
+.app-loading-placeholder {
+  min-height: 80px;
+}

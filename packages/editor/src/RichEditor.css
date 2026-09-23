@@ -26,26 +26,27 @@
 .full-editor-toolbar .ant-btn {
   min-width: 32px;
   height: 32px;
-  padding: 0 8px;
+  padding: 0 6px;
   border: none;
-  border-radius: 6px;
-  color: #4a5568;
-  background: transparent;
+  border-radius: 8px;
+  color: #55637a;
+  background: #f0f4fb;
   transition: color 0.15s, background-color 0.15s;
 }
 
 .full-editor-toolbar .ant-btn:hover {
   color: #2f6fed;
-  background: #eaf1fd;
+  background: #e1ebfb;
 }
 
-.full-editor-toolbar .ant-btn-primary {
-  color: #2f6fed;
-  background: #eaf1fd;
+.full-editor-toolbar .ant-btn.is-active {
+  color: #1f5ed6;
+  background: #cfe0fa;
 }
 
-.full-editor-toolbar .ant-btn-primary:hover {
-  background: #dde9fc;
+.full-editor-toolbar .ant-btn.is-active:hover {
+  color: #1f5ed6;
+  background: #c2d8f8;
 }
 
 .toolbar-divider {
@@ -92,8 +93,10 @@
   contain-intrinsic-size: auto 40px;
 }
 
-.full-editor-content[data-placeholder]:empty::before {
+.full-editor-content[data-placeholder].is-empty::before {
   content: attr(data-placeholder);
+  float: left;
+  height: 0;
   color: #b6c0cd;
   pointer-events: none;
 }

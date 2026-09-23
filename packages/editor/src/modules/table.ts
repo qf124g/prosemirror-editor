@@ -1,4 +1,4 @@
-import { TableOutlined } from '@ant-design/icons'
+import { TableOutlined, SettingOutlined } from '@ant-design/icons'
 import {
   tableNodes,
   tableEditing,
@@ -53,6 +53,7 @@ export const tableModule: EditorModule = {
       id: 'tableOps',
       type: 'dropdown',
       label: '表格操作',
+      icon: SettingOutlined,
       group: 'insert',
       options: [
         { id: 'addRowBefore', label: '上方插入行', command: 'addRowBefore' },

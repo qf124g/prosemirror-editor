@@ -5,6 +5,7 @@ import { EditorManager } from '../manager/EditorManager'
 import { builtinModules } from '../modules'
 import { createEditorState } from './createView'
 import { createSlashPlugin } from '../plugins/slashPlugin'
+import { createPlaceholderPlugin } from '../plugins/placeholder'
 import type {
   EditorModule,
   ResourceResolver,
@@ -40,7 +41,7 @@ export function createEditor(options: CreateEditorOptions): EditorInstance {
 
   const slashPlugin = createSlashPlugin({ getItems: () => manager.slashItems, onSelect: () => {} })
   // 模块自定义 keymap 优先于 baseKeymap 执行（如列表的 Enter/Tab 缩进需覆盖默认行为）
-  const plugins = [...manager.plugins, keymap(baseKeymap), slashPlugin, ...(options.plugins || [])]
+  const plugins = [...manager.plugins, keymap(baseKeymap), slashPlugin, createPlaceholderPlugin(), ...(options.plugins || [])]
 
   const state = createEditorState({
     schema: manager.schema,

@@ -8,6 +8,7 @@ import { builtinModules } from './modules'
 import { createEditorState } from './core/createView'
 import { toPlainText } from './core/serialization'
 import { createSlashPlugin, slashPluginKey, filterSlashItems, emptySlashState } from './plugins/slashPlugin'
+import { createPlaceholderPlugin } from './plugins/placeholder'
 import { Toolbar } from './components/Toolbar'
 import { SlashMenu } from './components/SlashMenu'
 import { AISummaryPanel } from './components/AISummaryPanel'
@@ -61,7 +62,7 @@ export function RichEditor(props: RichEditorProps) {
     aiSummary,
     showToolbar = true,
     editable = true,
-    placeholder = '输入 / 唤起菜单',
+    placeholder = '输入 / 试试吧',
     className,
   } = props
 
@@ -130,7 +131,7 @@ export function RichEditor(props: RichEditorProps) {
     })
 
     // 模块自定义 keymap 优先于 baseKeymap 执行（如列表的 Enter/Tab 缩进需覆盖默认行为）
-    const allPlugins: Plugin[] = [...manager.plugins, keymap(baseKeymap), slashPlugin, ...plugins]
+    const allPlugins: Plugin[] = [...manager.plugins, keymap(baseKeymap), slashPlugin, createPlaceholderPlugin(), ...plugins]
 
     const state = createEditorState({ schema: manager.schema, doc, initialHTML, plugins: allPlugins })
 
