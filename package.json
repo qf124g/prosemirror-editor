@@ -1,0 +1,12 @@
+{
+  "name": "full-editor",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev:server": "pnpm --filter server dev",
+    "dev:app": "pnpm --filter app dev",
+    "dev:editor": "pnpm --filter @full-editor/editor dev",
+    "build:editor": "pnpm --filter @full-editor/editor build"
+  },
+  "packageManager": "pnpm@12.5.1"
+}

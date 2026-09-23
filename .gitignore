@@ -1,0 +1,8 @@
+node_modules
+dist
+packages/editor/dist
+packages/app/dist
+server/data
+server/uploads
+*.log
+.DS_Store
