@@ -78,8 +78,14 @@
   caret-color: #2f6fed;
 }
 
-/* 长文本：让离屏块跳过布局，配合媒体懒加载 */
-.full-editor-content > * {
+/* 长文本：仅段落与标题离屏跳过布局；列表/表格/媒体因 contain 会裁剪 ::marker 或复杂结构，故排除 */
+.full-editor-content > p,
+.full-editor-content > h1,
+.full-editor-content > h2,
+.full-editor-content > h3,
+.full-editor-content > h4,
+.full-editor-content > h5,
+.full-editor-content > h6 {
   content-visibility: auto;
   contain-intrinsic-size: auto 40px;
 }
@@ -153,12 +159,42 @@
 
 .full-editor-content ul,
 .full-editor-content ol {
-  padding-left: 26px;
-  margin: 8px 0;
+  padding-left: 1.6em;
+  margin: 6px 0;
+}
+
+/* 嵌套列表逐层区分标识，避免缩进后编号/圆点层级混乱 */
+.full-editor-content ul {
+  list-style-type: disc;
+}
+
+.full-editor-content ul ul {
+  list-style-type: circle;
+}
+
+.full-editor-content ul ul ul {
+  list-style-type: square;
+}
+
+.full-editor-content ol {
+  list-style-type: decimal;
+}
+
+.full-editor-content ol ol {
+  list-style-type: lower-alpha;
+}
+
+.full-editor-content ol ol ol {
+  list-style-type: lower-roman;
 }
 
 .full-editor-content li {
   margin: 4px 0;
+}
+
+.full-editor-content li > ul,
+.full-editor-content li > ol {
+  margin-top: 4px;
 }
 
 .full-editor-content hr {
