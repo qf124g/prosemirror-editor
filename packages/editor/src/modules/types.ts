@@ -23,8 +23,8 @@ export interface MediaResourceSource {
   getState: (resourceId: string) => MediaResourceState | undefined
   // 订阅状态变化，返回取消订阅函数
   subscribe: (listener: () => void) => () => void
-  // 失败占位点击重试时由编辑器回调，宿主据此重新请求该资源
-  retry: (resourceId: string) => void
+  // 请求加载该资源：进入视窗的懒加载首载、失败后的手动重试均经此回调，由宿主发起真实请求
+  load: (resourceId: string) => void
 }
 
 // 图标统一用宽松类型，规避 antd 图标 ForwardRef 类型差异

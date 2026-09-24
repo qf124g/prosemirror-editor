@@ -319,12 +319,18 @@
   justify-content: center;
   gap: 8px;
   width: 200px;
-  height: 120px;
+  aspect-ratio: 5 / 3;
   border: 1.5px dashed #c9d6ea;
   border-radius: 8px;
   color: #9aa7b8;
   background: #f8fafd;
   font-size: 13px;
+}
+
+.media-widget--video .media-placeholder {
+  width: 100%;
+  max-width: 480px;
+  aspect-ratio: 16 / 9;
 }
 
 .media-widget--audio .media-placeholder {

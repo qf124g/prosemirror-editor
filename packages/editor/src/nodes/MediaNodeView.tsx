@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client'
-import { useSyncExternalStore } from 'react'
+import { useEffect, useRef, useSyncExternalStore } from 'react'
+import type { Ref } from 'react'
 import { Spin, Button } from 'antd'
 import { FileImageOutlined, VideoCameraOutlined, AudioOutlined } from '@ant-design/icons'
 import type { NodeSpec } from 'prosemirror-model'
@@ -49,14 +50,19 @@ interface MediaFrameProps {
   alt?: string
   mime?: string
   onRetry?: () => void
+  frameRef?: Ref<HTMLDivElement>
+  // 宽高比字符串（如 "16 / 9"），让占位继承最终媒体的尺寸，避免切换闪动
+  aspectRatio?: string
 }
 
 // 通用媒体渲染框架：根据加载状态展示占位（loading / failed）或真实媒体（success）
-function MediaFrame({ kind, status, url, alt, mime, onRetry }: MediaFrameProps) {
+function MediaFrame({ kind, status, url, alt, mime, onRetry, frameRef, aspectRatio }: MediaFrameProps) {
   const label = kindLabel(kind)
   const loaded = status === 'success' && !!url
+  // 占位按已知宽高比撑开高度，与真实媒体尺寸一致
+  const placeholderStyle = aspectRatio ? { aspectRatio } : undefined
   return (
-    <div className={`media-widget media-widget--${kind}`} contentEditable={false}>
+    <div ref={frameRef} className={`media-widget media-widget--${kind}`} contentEditable={false}>
       {loaded ? (
         kind === 'image' ? (
           <img src={url} alt={alt || ''} />
@@ -66,7 +72,7 @@ function MediaFrame({ kind, status, url, alt, mime, onRetry }: MediaFrameProps) 
           <audio controls src={url} />
         )
       ) : (
-        <div className={`media-placeholder media-placeholder--${status}`}>
+        <div className={`media-placeholder media-placeholder--${status}`} style={placeholderStyle}>
           {status === 'failed' ? (
             <>
               <KindIcon kind={kind} failed />
@@ -96,15 +102,51 @@ interface MediaWidgetProps {
   mediaSource?: MediaResourceSource
 }
 
-// 媒体渲染组件：仅订阅外部状态源，按状态被动渲染，不发起任何资源请求
+// 媒体渲染组件：仅订阅外部状态源，按状态被动渲染；进入视窗后通过 load 回调通知外部发起请求
 function MediaWidget({ kind, node, mediaSource }: MediaWidgetProps) {
-  const { resourceId, mime, alt } = node.attrs
+  const { resourceId, mime, alt, width, height } = node.attrs
   const state = useSyncExternalStore(
     (cb) => mediaSource?.subscribe(cb) ?? (() => {}),
     () => mediaSource?.getState(resourceId),
   )
+  const frameRef = useRef<HTMLDivElement>(null)
+  const loaded = state?.status === 'success'
 
-  return <MediaFrame kind={kind} status={state?.status ?? 'loading'} url={state?.url} alt={alt} mime={mime} onRetry={mediaSource ? () => mediaSource.retry(resourceId) : undefined} />
+  // 用节点记录的原始宽高推导宽高比，供占位继承最终媒体尺寸
+  const aspectRatio = width && height ? `${width} / ${height}` : undefined
+
+  // 懒加载：进入视窗且尚未加载成功时，通知外部发起请求（rootMargin 提前 200px 预载）
+  useEffect(() => {
+    if (!mediaSource || !resourceId || loaded) return
+    const el = frameRef.current
+    if (!el) return
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            mediaSource.load(resourceId)
+            io.disconnect()
+          }
+        })
+      },
+      { rootMargin: '200px' },
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [mediaSource, resourceId, loaded])
+
+  return (
+    <MediaFrame
+      kind={kind}
+      status={state?.status ?? 'loading'}
+      url={state?.url}
+      alt={alt}
+      mime={mime}
+      frameRef={frameRef}
+      aspectRatio={aspectRatio}
+      onRetry={mediaSource ? () => mediaSource.load(resourceId) : undefined}
+    />
+  )
 }
 
 // 将一个 React 组件包成 ProseMirror NodeView

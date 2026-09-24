@@ -40,11 +40,13 @@ function App() {
         if (!res.ok) throw new Error('资源加载失败')
         return res.json()
       })
-      .then((data) => setResourceState(resourceId, { status: 'success', url: `${API}${data.url}`, mime: data.mime || '' }))
+      .then((data) => {
+        setTimeout(() => setResourceState(resourceId, { status: 'success', url: `${API}${data.url}`, mime: data.mime || '' }), 1000)
+      })
       .catch(() => setResourceState(resourceId, { status: 'failed' }))
   }, [setResourceState])
 
-  // 只提供读取与订阅，编辑器内部不发起请求；retry 供失败占位的重试按钮回调外部重新请求
+  // 只提供读取与订阅，编辑器内部不发起请求；load 供进入视窗懒加载、失败重试时回调外部发请求
   const mediaSource = useMemo<MediaResourceSource>(() => ({
     getState: (resourceId: string) => mediaStateRef.current.get(resourceId),
     subscribe: (listener: () => void) => {
@@ -53,36 +55,19 @@ function App() {
         mediaListenersRef.current.delete(listener)
       }
     },
-    retry: (resourceId: string) => loadResource(resourceId),
+    load: (resourceId: string) => loadResource(resourceId),
   }), [loadResource])
 
-  // 递归收集文档 JSON 中出现的媒体资源 id
-  const collectResourceIds = (node: any, ids: Set<string>) => {
-    if (!node || typeof node !== 'object') return
-    if (node.attrs?.resourceId) ids.add(node.attrs.resourceId)
-    if (Array.isArray(node.content)) node.content.forEach((child: any) => collectResourceIds(child, ids))
-  }
-
-  // 扫描文档，对尚未请求过的资源发起加载（外部负责请求）
-  const ensureResources = useCallback((docJson: any) => {
-    const ids = new Set<string>()
-    collectResourceIds(docJson, ids)
-    ids.forEach((id) => {
-      if (!mediaStateRef.current.has(id)) loadResource(id)
-    })
-  }, [loadResource])
-
-  // 加载初始文档后，扫描其中的媒体资源并发起请求
+  // 加载初始文档（不在此发起资源请求，等各资源进入视窗后由编辑器回调 load）
   useEffect(() => {
     fetch(`${API}/api/documents/${DOC_ID}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         setInitialDoc(d)
         setLoaded(true)
-        if (d) ensureResources(d)
       })
       .catch(() => setLoaded(true))
-  }, [ensureResources])
+  }, [])
 
   // 上传媒体，返回后端分配的 resourceId
   const uploadMedia = useCallback(async (file: File) => {
@@ -145,9 +130,8 @@ function App() {
     editorRef.current = handle
   }, [])
 
-  // 内容变化 -> 扫描新资源并防抖保存到后端
+  // 内容变化 -> 防抖保存到后端
   const handleChange = useCallback((docJson: any) => {
-    ensureResources(docJson)
     if (saveTimer.current) window.clearTimeout(saveTimer.current)
     saveTimer.current = window.setTimeout(async () => {
       try {
@@ -161,7 +145,7 @@ function App() {
         // message.error('保存失败')
       }
     }, 800)
-  }, [ensureResources])
+  }, [])
 
   const exportAs = (type: 'json' | 'html' | 'markdown') => {
     const view = editorRef.current?.view
