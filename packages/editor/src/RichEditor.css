@@ -81,36 +81,6 @@
   word-break: break-word;
 }
 
-/* 长文本虚拟滚动：对顶层块做 CSS 级离屏跳过（content-visibility:auto），
-   浏览器跳过离屏块的布局/绘制，DOM 与滚动高度保持准确；
-   列表 ul/ol 因 contain 会裁剪 list-style-position:outside 的 ::marker，故排除 */
-.full-editor-content > p,
-.full-editor-content > h1,
-.full-editor-content > h2,
-.full-editor-content > h3,
-.full-editor-content > h4,
-.full-editor-content > h5,
-.full-editor-content > h6,
-.full-editor-content > blockquote {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 40px;
-}
-
-.full-editor-content > pre {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 48px;
-}
-
-.full-editor-content > table {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 120px;
-}
-
-.full-editor-content > .media-node-view {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 160px;
-}
-
 .full-editor-content[data-placeholder].is-empty::before {
   content: attr(data-placeholder);
   float: left;
