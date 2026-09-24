@@ -59,10 +59,10 @@ interface MediaFrameProps {
 function MediaFrame({ kind, status, url, alt, mime, onRetry, frameRef, aspectRatio }: MediaFrameProps) {
   const label = kindLabel(kind)
   const loaded = status === 'success' && !!url
-  // 占位按已知宽高比撑开高度，与真实媒体尺寸一致
-  const placeholderStyle = aspectRatio ? { aspectRatio } : undefined
+  // 宽高比作用在外层框架上，loading / success / failed 三种状态共用同一尺寸容器，切换时不闪动
+  const frameStyle = aspectRatio ? { aspectRatio } : undefined
   return (
-    <div ref={frameRef} className={`media-widget media-widget--${kind}`} contentEditable={false}>
+    <div ref={frameRef} className={`media-widget media-widget--${kind}`} style={frameStyle} contentEditable={false}>
       {loaded ? (
         kind === 'image' ? (
           <img src={url} alt={alt || ''} />
@@ -72,7 +72,7 @@ function MediaFrame({ kind, status, url, alt, mime, onRetry, frameRef, aspectRat
           <audio controls src={url} />
         )
       ) : (
-        <div className={`media-placeholder media-placeholder--${status}`} style={placeholderStyle}>
+        <div className={`media-placeholder media-placeholder--${status}`}>
           {status === 'failed' ? (
             <>
               <KindIcon kind={kind} failed />

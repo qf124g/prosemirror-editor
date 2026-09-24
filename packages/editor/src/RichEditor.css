@@ -331,29 +331,36 @@
   max-width: 100%;
 }
 
-.media-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
+/* 外层框架承载固定尺寸：loading / success / failed 共用同一容器，切换时不闪动 */
+.media-widget--image {
   width: 200px;
   aspect-ratio: 5 / 3;
-  border: 1.5px dashed #c9d6ea;
-  border-radius: 8px;
-  color: #9aa7b8;
-  background: #f8fafd;
-  font-size: 13px;
 }
 
-.media-widget--video .media-placeholder {
+.media-widget--video {
   width: 100%;
   max-width: 480px;
   aspect-ratio: 16 / 9;
 }
 
-.media-widget--audio .media-placeholder {
+.media-widget--audio {
   width: 320px;
   height: 48px;
+}
+
+.media-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  border: 1.5px dashed #c9d6ea;
+  border-radius: 8px;
+  color: #9aa7b8;
+  background: #f8fafd;
+  font-size: 13px;
+  box-sizing: border-box;
 }
 
 .media-kind-icon {
@@ -376,22 +383,24 @@
 }
 
 .media-widget img {
-  width: 200px;
-  height: auto;
+  width: 100%;
+  height: 100%;
   display: block;
+  object-fit: cover;
   border-radius: 8px;
   box-shadow: 0 1px 6px rgba(30, 60, 120, 0.1);
 }
 
 .media-widget video {
   width: 100%;
-  max-width: 480px;
+  height: 100%;
   display: block;
   border-radius: 8px;
 }
 
 .media-widget audio {
-  width: 320px;
+  width: 100%;
+  height: 100%;
   display: block;
 }
 
