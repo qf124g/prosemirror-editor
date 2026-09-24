@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Button, Space, Spin, Select, message } from 'antd'
-import { DownloadOutlined, UploadOutlined } from '@ant-design/icons'
+import { Button, Space, Spin, Select, message, Dropdown } from 'antd'
+import type { MenuProps } from 'antd'
+import { DownloadOutlined, UploadOutlined, MoreOutlined } from '@ant-design/icons'
 import {
   RichEditor,
   toJSON,
@@ -12,6 +13,13 @@ import type { RichEditorHandle, AICollabMode, MediaResourceSource, MediaResource
 
 const API = 'http://localhost:4000'
 const DOC_ID = 'demo'
+
+// 导出下拉菜单项：JSON / HTML / Markdown
+const exportMenuItems: MenuProps['items'] = [
+  { key: 'json', label: '导出 JSON', icon: <DownloadOutlined /> },
+  { key: 'html', label: '导出 HTML', icon: <DownloadOutlined /> },
+  { key: 'markdown', label: '导出 Markdown', icon: <DownloadOutlined /> },
+]
 
 function App() {
   const editorRef = useRef<RichEditorHandle | null>(null)
@@ -207,15 +215,14 @@ function App() {
           >
             AI 改写
           </Button>
-          <Button icon={<DownloadOutlined />} onClick={() => exportAs('json')}>
-            导出 JSON
-          </Button>
-          <Button icon={<DownloadOutlined />} onClick={() => exportAs('html')}>
-            导出 HTML
-          </Button>
-          <Button icon={<DownloadOutlined />} onClick={() => exportAs('markdown')}>
-            导出 Markdown
-          </Button>
+          <Dropdown
+            menu={{
+              items: exportMenuItems,
+              onClick: ({ key }) => exportAs(key as 'json' | 'html' | 'markdown'),
+            }}
+          >
+            <Button icon={<MoreOutlined />}>更多</Button>
+          </Dropdown>
           <Button icon={<UploadOutlined />} onClick={() => fileInputRef.current?.click()}>
             导入 JSON
           </Button>
