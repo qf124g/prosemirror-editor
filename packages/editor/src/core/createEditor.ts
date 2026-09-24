@@ -8,7 +8,7 @@ import { createSlashPlugin } from '../plugins/slashPlugin'
 import { createPlaceholderPlugin } from '../plugins/placeholder'
 import type {
   EditorModule,
-  ResourceResolver,
+  MediaResourceSource,
   UploadMedia,
 } from '../modules/types'
 
@@ -16,7 +16,7 @@ export interface CreateEditorOptions {
   element: HTMLElement
   doc?: any
   initialHTML?: string
-  resourceResolver?: ResourceResolver
+  mediaSource?: MediaResourceSource
   uploadMedia?: UploadMedia
   modules?: EditorModule[]
   plugins?: any[]
@@ -34,7 +34,7 @@ export interface EditorInstance {
 // Headless 创建编辑器：无需 React，供宿主直接挂载使用
 export function createEditor(options: CreateEditorOptions): EditorInstance {
   const manager = new EditorManager([...builtinModules, ...(options.modules || [])], {
-    resourceResolver: options.resourceResolver,
+    mediaSource: options.mediaSource,
     uploadMedia: options.uploadMedia,
   })
   manager.init()

@@ -1,10 +1,23 @@
 import { createRoot } from 'react-dom/client'
-import { useEffect, useRef, useState } from 'react'
+import { useSyncExternalStore } from 'react'
+import { Spin, Button } from 'antd'
+import { FileImageOutlined, VideoCameraOutlined, AudioOutlined } from '@ant-design/icons'
 import type { NodeSpec } from 'prosemirror-model'
 import type { EditorView } from 'prosemirror-view'
-import type { EditorContext } from '../modules/types'
+import type { EditorContext, MediaResourceSource, MediaResourceStatus } from '../modules/types'
 
 export type MediaKind = 'image' | 'video' | 'audio'
+
+// 媒体类型的中文标签
+const kindLabel = (kind: MediaKind): string => (kind === 'image' ? '图片' : kind === 'video' ? '视频' : '语音')
+
+// 媒体类型对应的占位图标
+function KindIcon({ kind, failed }: { kind: MediaKind; failed?: boolean }) {
+  const cls = `media-kind-icon${failed ? ' media-kind-icon--failed' : ''}`
+  if (kind === 'image') return <FileImageOutlined className={cls} />
+  if (kind === 'video') return <VideoCameraOutlined className={cls} />
+  return <AudioOutlined className={cls} />
+}
 
 // 媒体资源节点的通用 spec（图片/视频/语音共用）
 export function createMediaNodeSpec(kind: MediaKind, defaultMime: string): NodeSpec {
@@ -29,80 +42,69 @@ export function createMediaNodeSpec(kind: MediaKind, defaultMime: string): NodeS
   }
 }
 
+interface MediaFrameProps {
+  kind: MediaKind
+  status: MediaResourceStatus
+  url?: string
+  alt?: string
+  mime?: string
+  onRetry?: () => void
+}
+
+// 通用媒体渲染框架：根据加载状态展示占位（loading / failed）或真实媒体（success）
+function MediaFrame({ kind, status, url, alt, mime, onRetry }: MediaFrameProps) {
+  const label = kindLabel(kind)
+  const loaded = status === 'success' && !!url
+  return (
+    <div className={`media-widget media-widget--${kind}`} contentEditable={false}>
+      {loaded ? (
+        kind === 'image' ? (
+          <img src={url} alt={alt || ''} />
+        ) : kind === 'video' ? (
+          <video controls src={url} />
+        ) : (
+          <audio controls src={url} />
+        )
+      ) : (
+        <div className={`media-placeholder media-placeholder--${status}`}>
+          {status === 'failed' ? (
+            <>
+              <KindIcon kind={kind} failed />
+              <span className="media-status-text">{label}加载失败</span>
+              {onRetry && (
+                <Button type="link" size="small" onClick={onRetry}>
+                  重试
+                </Button>
+              )}
+            </>
+          ) : (
+            <>
+              <Spin size="small" />
+              <span className="media-status-text">{label}加载中...</span>
+            </>
+          )}
+        </div>
+      )}
+      {loaded && mime && <span className="media-mime">{mime}</span>}
+    </div>
+  )
+}
+
 interface MediaWidgetProps {
   kind: MediaKind
   node: any
-  view: EditorView
-  getPos: () => number | undefined
-  resourceResolver?: EditorContext['resourceResolver']
+  mediaSource?: MediaResourceSource
 }
 
-// 媒体渲染组件：占位符 + IntersectionObserver 懒加载 + 异步解析资源
-function MediaWidget({ kind, node, resourceResolver }: MediaWidgetProps) {
+// 媒体渲染组件：仅订阅外部状态源，按状态被动渲染，不发起任何资源请求
+function MediaWidget({ kind, node, mediaSource }: MediaWidgetProps) {
   const { resourceId, mime, alt } = node.attrs
-  const [url, setUrl] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(false)
-  const [inView, setInView] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setInView(true)
-            io.disconnect()
-          }
-        })
-      },
-      { rootMargin: '200px' },
-    )
-    io.observe(el)
-    return () => io.disconnect()
-  }, [])
-
-  useEffect(() => {
-    if (!inView || !resourceResolver || !resourceId || url) return
-    let cancelled = false
-    setLoading(true)
-    resourceResolver(resourceId)
-      .then((res) => {
-        if (!cancelled) {
-          setUrl(res.url)
-          setLoading(false)
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setError(true)
-          setLoading(false)
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [inView, resourceId, resourceResolver, url])
-
-  const placeholderText = error ? '资源加载失败' : loading ? '资源加载中...' : kind === 'image' ? '图片' : kind === 'video' ? '视频' : '语音'
-  const showPlaceholder = !url
-
-  return (
-    <div ref={ref} className={`media-widget media-widget--${kind}`} contentEditable={false}>
-      {showPlaceholder ? (
-        <div className="media-placeholder">{placeholderText}</div>
-      ) : kind === 'image' ? (
-        <img src={url!} alt={alt || ''} />
-      ) : kind === 'video' ? (
-        <video controls src={url!} />
-      ) : (
-        <audio controls src={url!} />
-      )}
-      {!showPlaceholder && mime && <span className="media-mime">{mime}</span>}
-    </div>
+  const state = useSyncExternalStore(
+    (cb) => mediaSource?.subscribe(cb) ?? (() => {}),
+    () => mediaSource?.getState(resourceId),
   )
+
+  return <MediaFrame kind={kind} status={state?.status ?? 'loading'} url={state?.url} alt={alt} mime={mime} onRetry={mediaSource ? () => mediaSource.retry(resourceId) : undefined} />
 }
 
 // 将一个 React 组件包成 ProseMirror NodeView
@@ -136,10 +138,10 @@ export function createReactNodeView(Component: React.ComponentType<any>) {
   }
 }
 
-// 生成指定类型的媒体 NodeView 工厂（闭包注入 resourceResolver）
+// 生成指定类型的媒体 NodeView 工厂（闭包注入 mediaSource）
 export function createMediaNodeView(kind: MediaKind) {
   return (ctx: EditorContext) => {
-    const Component = (props: any) => <MediaWidget kind={kind} resourceResolver={ctx.resourceResolver} {...props} />
+    const Component = (props: any) => <MediaWidget kind={kind} mediaSource={ctx.mediaSource} {...props} />
     return createReactNodeView(Component)
   }
 }

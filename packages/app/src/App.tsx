@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Space, Spin, Select, message } from 'antd'
 import { DownloadOutlined, UploadOutlined } from '@ant-design/icons'
 import {
@@ -8,7 +8,7 @@ import {
   toMarkdown,
   downloadFile,
 } from '@full-editor/editor'
-import type { RichEditorHandle, AICollabMode } from '@full-editor/editor'
+import type { RichEditorHandle, AICollabMode, MediaResourceSource, MediaResourceState } from '@full-editor/editor'
 
 const API = 'http://localhost:4000'
 const DOC_ID = 'demo'
@@ -23,23 +23,66 @@ function App() {
   const [docKey, setDocKey] = useState(0)
   const [aiMode, setAiMode] = useState<AICollabMode>('ghost')
 
+  // 媒体资源状态：由 App 维护 resourceId -> 加载状态，编辑器 NodeView 仅订阅读取展示
+  const mediaStateRef = useRef<Map<string, MediaResourceState>>(new Map())
+  const mediaListenersRef = useRef<Set<() => void>>(new Set())
+
+  const setResourceState = useCallback((resourceId: string, state: MediaResourceState) => {
+    mediaStateRef.current.set(resourceId, state)
+    mediaListenersRef.current.forEach((listener) => listener())
+  }, [])
+
+  // 请求单个资源：成功后写入 url，失败标记 failed
+  const loadResource = useCallback((resourceId: string) => {
+    setResourceState(resourceId, { status: 'loading' })
+    fetch(`${API}/api/resources/${resourceId}`)
+      .then((res) => {
+        if (!res.ok) throw new Error('资源加载失败')
+        return res.json()
+      })
+      .then((data) => setResourceState(resourceId, { status: 'success', url: `${API}${data.url}`, mime: data.mime || '' }))
+      .catch(() => setResourceState(resourceId, { status: 'failed' }))
+  }, [setResourceState])
+
+  // 只提供读取与订阅，编辑器内部不发起请求；retry 供失败占位的重试按钮回调外部重新请求
+  const mediaSource = useMemo<MediaResourceSource>(() => ({
+    getState: (resourceId: string) => mediaStateRef.current.get(resourceId),
+    subscribe: (listener: () => void) => {
+      mediaListenersRef.current.add(listener)
+      return () => {
+        mediaListenersRef.current.delete(listener)
+      }
+    },
+    retry: (resourceId: string) => loadResource(resourceId),
+  }), [loadResource])
+
+  // 递归收集文档 JSON 中出现的媒体资源 id
+  const collectResourceIds = (node: any, ids: Set<string>) => {
+    if (!node || typeof node !== 'object') return
+    if (node.attrs?.resourceId) ids.add(node.attrs.resourceId)
+    if (Array.isArray(node.content)) node.content.forEach((child: any) => collectResourceIds(child, ids))
+  }
+
+  // 扫描文档，对尚未请求过的资源发起加载（外部负责请求）
+  const ensureResources = useCallback((docJson: any) => {
+    const ids = new Set<string>()
+    collectResourceIds(docJson, ids)
+    ids.forEach((id) => {
+      if (!mediaStateRef.current.has(id)) loadResource(id)
+    })
+  }, [loadResource])
+
+  // 加载初始文档后，扫描其中的媒体资源并发起请求
   useEffect(() => {
     fetch(`${API}/api/documents/${DOC_ID}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         setInitialDoc(d)
         setLoaded(true)
+        if (d) ensureResources(d)
       })
       .catch(() => setLoaded(true))
-  }, [])
-
-  // 资源 id -> url 异步解析
-  const resourceResolver = useCallback(async (resourceId: string) => {
-    const res = await fetch(`${API}/api/resources/${resourceId}`)
-    if (!res.ok) throw new Error('资源加载失败')
-    const data = await res.json()
-    return { url: `${API}${data.url}`, mime: data.mime || '' }
-  }, [])
+  }, [ensureResources])
 
   // 上传媒体，返回后端分配的 resourceId
   const uploadMedia = useCallback(async (file: File) => {
@@ -102,8 +145,9 @@ function App() {
     editorRef.current = handle
   }, [])
 
-  // 内容变化 -> 防抖保存到后端
+  // 内容变化 -> 扫描新资源并防抖保存到后端
   const handleChange = useCallback((docJson: any) => {
+    ensureResources(docJson)
     if (saveTimer.current) window.clearTimeout(saveTimer.current)
     saveTimer.current = window.setTimeout(async () => {
       try {
@@ -117,7 +161,7 @@ function App() {
         // message.error('保存失败')
       }
     }, 800)
-  }, [])
+  }, [ensureResources])
 
   const exportAs = (type: 'json' | 'html' | 'markdown') => {
     const view = editorRef.current?.view
@@ -210,7 +254,7 @@ function App() {
           doc={initialDoc}
           onChange={handleChange}
           onReady={handleReady}
-          resourceResolver={resourceResolver}
+          mediaSource={mediaSource}
           uploadMedia={uploadMedia}
           aiSummary={aiSummary}
           aiComplete={aiComplete}

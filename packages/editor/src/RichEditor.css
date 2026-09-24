@@ -317,6 +317,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
   width: 200px;
   height: 120px;
   border: 1.5px dashed #c9d6ea;
@@ -329,6 +330,25 @@
 .media-widget--audio .media-placeholder {
   width: 320px;
   height: 48px;
+}
+
+.media-kind-icon {
+  font-size: 24px;
+  color: #9aa7b8;
+}
+
+.media-kind-icon--failed {
+  color: #d9534f;
+}
+
+.media-placeholder--failed {
+  color: #d9534f;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.media-placeholder--failed .media-status-text {
+  color: #d9534f;
 }
 
 .media-widget img {

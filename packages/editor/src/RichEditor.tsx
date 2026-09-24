@@ -18,7 +18,7 @@ import { AISummaryPanel } from './components/AISummaryPanel'
 import type {
   EditorAPI,
   EditorModule,
-  ResourceResolver,
+  MediaResourceSource,
   SlashItemConfig,
   ToolbarItemConfig,
   UploadMedia,
@@ -40,8 +40,8 @@ export interface RichEditorProps {
   initialHTML?: string
   onChange?: (doc: any) => void
   onReady?: (handle: RichEditorHandle) => void
-  resourceResolver?: ResourceResolver
   uploadMedia?: UploadMedia
+  mediaSource?: MediaResourceSource
   modules?: EditorModule[]
   plugins?: Plugin[]
   toolbarItems?: ToolbarItemConfig[]
@@ -100,8 +100,8 @@ export function RichEditor(props: RichEditorProps) {
     initialHTML,
     onChange,
     onReady,
-    resourceResolver,
     uploadMedia,
+    mediaSource,
     modules,
     plugins = [],
     toolbarItems = [],
@@ -184,7 +184,7 @@ export function RichEditor(props: RichEditorProps) {
     const element = containerRef.current
     if (!element) return
 
-    const manager = new EditorManager([...builtinModules, ...(modules || [])], { resourceResolver, uploadMedia })
+    const manager = new EditorManager([...builtinModules, ...(modules || [])], { uploadMedia, mediaSource })
     manager.init()
     toolbarItems.forEach((t) => manager.addToolbarItem(t))
     slashItems.forEach((s) => manager.addSlashItem(s))

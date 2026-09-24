@@ -3,11 +3,29 @@ import type { Plugin, EditorState, Command } from 'prosemirror-state'
 import type { InputRule } from 'prosemirror-inputrules'
 import type { EditorView, NodeViewConstructor } from 'prosemirror-view'
 
-// 资源异步解析：根据 resourceId 换取可用的 url 与 mime
-export type ResourceResolver = (resourceId: string) => Promise<{ url: string; mime: string }>
-
 // 媒体上传：上传本地文件，返回后端分配的 resourceId
 export type UploadMedia = (file: File) => Promise<{ resourceId: string; mime: string }>
+
+// 媒体资源加载状态：loading 请求中 / success 已加载 / failed 加载失败
+export type MediaResourceStatus = 'loading' | 'success' | 'failed'
+
+// 单个媒体资源的展示状态，由宿主维护并驱动编辑器占位
+export interface MediaResourceState {
+  status: MediaResourceStatus
+  url?: string
+  mime?: string
+}
+
+// 外部媒体状态源：宿主维护资源状态（loading / success / failed + url），编辑器仅订阅读取并展示
+// 编辑器内部不发起任何资源请求，状态完全由宿主在请求前后写入
+export interface MediaResourceSource {
+  // 读取某资源当前状态，返回引用需稳定（内容不变时不新建对象）
+  getState: (resourceId: string) => MediaResourceState | undefined
+  // 订阅状态变化，返回取消订阅函数
+  subscribe: (listener: () => void) => () => void
+  // 失败占位点击重试时由编辑器回调，宿主据此重新请求该资源
+  retry: (resourceId: string) => void
+}
 
 // 图标统一用宽松类型，规避 antd 图标 ForwardRef 类型差异
 type IconType = any
@@ -21,8 +39,8 @@ export interface EditorAPI {
 
 // 模块构建时注入的上下文
 export interface EditorContext {
-  resourceResolver?: ResourceResolver
   uploadMedia?: UploadMedia
+  mediaSource?: MediaResourceSource
 }
 
 export interface ToolbarOption {
